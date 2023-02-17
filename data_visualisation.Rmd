@@ -1,0 +1,460 @@
+---
+title: "Analysis and Visualization of Centre For Policing Equity Data"
+author: "Santosh Kumar Inaganti (si21114)"
+date: "29/04/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+The data provided for the assignment is the policing equity data set, that has information about the incidents and the details of police force that dealt with those incidents in the region of Dallas, Texas. The goal of this study is to dig deep into the data and find out if there are any racial disparities or injustice happening within the police force. 
+
+
+```{r, include=FALSE}
+
+library(tidyr)
+library(lattice)
+library(gridExtra)
+library(ggplot2)
+library(tidyverse)
+library(ggpubr)
+library(ggmap)
+library(shiny)
+library(leaflet)
+library(RColorBrewer)
+library(dplyr)
+library(leaflet.extras)
+library(lubridate)
+library(ggridges)
+library(viridis)
+library(hrbrthemes)
+library(scales)
+library(gganimate)
+#install.packages("mapview")
+library(mapview)
+library(sf)
+library(plotly)
+```
+### Preliminary Analysis
+
+```{r}
+
+df = read.csv(file = "37-00049_UOF-P_2016_prepped.csv", skip = 1) 
+
+```
+
+Exploring the data to check for the type of data, the shape of the data frame and also checking for any missing values.
+
+```{r}
+#Checking for the count of missing values per column
+missing_vals <- sapply(df, function(y) sum(length(which(is.na(y)))))
+missing_vals <- as.data.frame(missing_vals)
+missing_vals
+
+```
+There are no misisng values in any of the columns except for the Latitude and Longitude. Both these columns have 55 missing values. Some columns do have NULL values.
+
+
+```{r}
+str(df)
+```
+The columns like OCCURED_D,OCCURED_T are being read as character data types, We need to manually convert them into the type **Date**.
+
+```{r}
+#Converting necessary columns into date type
+df$OCCURRED_D <- mdy(df$OCCURRED_D)
+
+#Extracting the monthas a seperate colum for future use
+df$Month_of_INC <- months(as.Date(df$OCCURRED_D),abbreviate = TRUE)
+df$MONTH <-format(df$OCCURRED_D,"%m")
+#df$Month_of_INC #A new column in added to the df, which has the month information for the specific row
+
+```
+
+I have created a new column named **Month_of_INC** in the data frame. This column has the value of **Month** extracted from the *OCCURED_D* column. The purpose of doing that is to make it easy to plot maps going forward.  
+
+
+The data is now prepared for the analysis. Lets start by checking how many incidents happen on a monthly basis in the state.
+```{r, fig.width= 10}
+
+#In order to make it easy to plot, I am grouping certain data together
+monthly_incidents <- df %>%
+  group_by(MONTH) %>%
+  summarize(count =n())
+
+
+#monthly_incidents
+month_count <- ggplot(data=monthly_incidents, aes(x=MONTH, y=count, group=1)) +
+  geom_line()+
+  geom_point()+ scale_color_viridis(discrete = TRUE) +labs(x="Month", y="Count of Incidents") + ggtitle("Crimes per month") #scale_x_date(labels = date_format("%b"))
+  
+ggplotly(month_count)
+
+```
+The above graph shows the number of crimes per each month.
+* The incident rate peaked in the month of March with a total of 264 incidents followed closely by February with 254.
+* December recorder the lowest number of incidents.
+
+
+
+Let's have a look at the ratio of Male and Female officers in the force.
+```{r}
+off_ratio_plot <- ggplot(df,aes(x=factor(OffSex)))+
+  geom_bar(position="dodge")+theme_minimal()+
+  labs(title="Gender ratio of officers in the force", x="Officer Gender", y = "Count")+
+  geom_text(aes(label=..count..),stat='count',position=position_dodge(0.7),vjust=-0.2)
+
+off_ratio_plot
+
+```
+
+
+The ratio of female officers in the force is drastically low compared to males. Females account for only about a 10% of the total force.
+
+
+## Incidents Across Each Division
+
+
+
+```{r, fig.dim==c(10,10)}
+
+
+division_count <-  df %>%
+  group_by(MONTH,DIVISION) %>%
+  summarize(count = n())
+
+
+
+div <- ggplot(division_count, aes(x = MONTH, y = count, group = 'count'))  + geom_area( aes(color= DIVISION, fill=DIVISION), size = 1.2) +
+   facet_wrap(~ DIVISION,ncol=4) +theme_cleveland() +theme(legend.position="none") + 
+  labs(x="Months ", y= "INCIDENT COUNTS", title=" Incidents per each Division")+theme(axis.text.x = element_text(angle = 90))
+
+ggplotly(div)
+
+```
+
+The above plots show that the highest number of incidents occurred in the **CENTRAL** division and the lowest in the **NORTHWEST**. It's safe to assume that **NORTHWEST** is the relatively safe compared to all the divisions. Also the months of February and March have the most number of incidents across all the divisions.
+
+
+### Race ratio among the force
+
+Let's have a look at the race of the officers.
+
+```{r}
+off_race_plot <- ggplot(df,aes(x=factor(OffRace), fill=OffRace))+
+  geom_bar(position="dodge")+scale_fill_brewer(palette = "Paired")+
+  labs(title="Ratio of Officer Race", x="Officer Race", y = "Count")+
+  geom_text(aes(label=..count..),stat='count',position=position_dodge(0.7),vjust=-0.2)
+
+ off_race_plot
+ 
+```
+
+
+
+
+The majority of the officers are White, followed by Hispanic. American Ind is the least seen race in the officers with just 8 officers in total. Black officers account for the third highest race. Although this may not tell the whole story, it seems like the police force is mostly filled with White officers.
+
+
+Let's try to look if there are any patterns between the race of the race of the officers that dealt with each of the incidents.
+
+
+```{r}
+oficer_race_vs_force = ggplot(df,aes(x = OffRace,fill = SERVICE_TY)) + 
+  geom_bar(position = "dodge") +
+  theme(axis.text.x = element_text(size  = 8,
+                                   angle = 90,
+                                   hjust = 1,
+                                   vjust = 1))+labs(x="Race of officer", y= "Count of force", title = "Race of the involved officers vs Incident Reason")
+
+ggplotly(oficer_race_vs_force)
+
+
+```
+White officers are more involved in the incidents than any other race due to their ratio in the force. Here are few interesting observations:
+* Black officers are more involved in crowd control that white. Although the  overall occurrence of crowd control is low, most of it was dealth by the black officers.
+* White officers are more involved in the incidents occurring due to **suspicious activity**.
+* Black officers are involved in the most number of *Off_Duty Incidents* with a total of 21 incidents.
+
+### Moving on to the subjects
+
+
+```{r}
+subject_race_plot <- ggplot(df,aes(x=factor(CitRace), fill=CitRace))+
+  geom_bar(position="dodge")+scale_fill_brewer(palette = "Set2")+
+  labs(title="Ratio of Subject Race", x="Subject Race", y = "Count")+
+  geom_text(aes(label=..count..),stat='count',position=position_dodge(0.7),vjust=-0.2)
+
+subject_race_plot
+
+```
+
+
+The above graph shows that the Black people have committed more crimes in the region, followed by the Hispanic and then the White races. While the stats tell us that the black race has been responsible for more incidents, there is no data available to evaluate the authenticity of the incident.
+
+Let's look at the race and gender of the subjects.
+```{r}
+race_to_sex_ratio <- ggplot(data = df, aes(x= CitRace, fill=CitSex)) + geom_bar(na.rm = TRUE)+theme_classic2()+scale_fill_brewer(palette = "Accent")+labs(y = "Count", x = "Suspect Race", title = "Ratio of Suspect Race to Gender")
+
+ggplotly(race_to_sex_ratio)
+
+```
+Black Males and Females have been involved in more incidents than any other gender and race. 
+
+
+Lets try to visualize how many incidents have led to arrests.
+```{r}
+
+arrests <- df %>%
+  group_by(OCCURRED_D, CIT_ARREST) %>%
+  summarize(count =n())
+
+ggplot(df,aes(x=CIT_ARREST, fill=CIT_ARREST))+
+  geom_bar(position="dodge")+scale_fill_brewer(palette = "Paired")+
+  labs(title="Incident vs Arrest Ratio", x="Suspect Arrested", y = "")+
+  geom_text(aes(label=..count..),stat='count',position=position_dodge(0.9),vjust=-0.2)
+
+
+
+```
+Out of a total of 2,383 reported incidents, 86% of the time, the subject was arrested.
+
+ 
+
+Let's take a look at the arrest ratio by race of the suspect
+
+```{r}
+
+arrest_race_plot <- ggplot(df,aes(x=CIT_ARREST, fill=CitRace))+
+  geom_bar(position="dodge")+scale_fill_brewer(palette = "Set2")+
+  labs(title="Arrest Ratio by Race", x="Suspect Arrested", y = "Count")+
+  geom_text(aes(label=..count..),stat='count',position=position_dodge(0.9),vjust=-0.2)
+
+arrest_race_plot
+```
+Black Males are the most arrested subjects followed by Male Hispanics.
+
+Let's plot the subject description to see what state the subject was in when they committed the incident.
+
+```{r, fig.height= 7}
+
+suspect_description_plot <- ggplot(data = df, aes(x= CIT_INFL_A, fill=CIT_ARREST)) + geom_bar(alpha = 0.5)+theme_classic()+labs(y = "Count", x = "Subject Description", title = "Subject Description vs Arrest")+theme(axis.text.x = element_text(angle = 90), legend.position = "bottom" )
+
+ggplotly( suspect_description_plot)
+
+
+```
+1. Mental instability seems to be the reason for most of the incidents. Around 410 incidents of mental stability were reported and in 377 cases, the mentally unstable subject was arrested.
+2. Alcohol is the second biggest reason leading to arrests.
+
+## Subject Race vs Subject Description
+```{r}
+
+sus_des <- ggplot(data = df, aes(x= CIT_INFL_A, fill=CitRace)) + geom_bar(position = "fill")+theme_minimal()+labs(y = "", x = "", title = "Suspect Description Count")+theme(axis.text.x =    element_text(angle = 90), legend.position = "bottom")
+
+ggplotly(sus_des)
+```
+* Black people account for the most number of cases related to Marijuana and Drugs. They are also the leading percentage in cases where the description is **Unknown** and **None Detected**. * * White and Black races are equally involved in description related to **FD-Motor Vehicle**.
+* Black and White races are almost equal where the subject has been found to be armed with a gun.
+* Hispanic race is leading in cases related with alcohol.
+* In almost 70% of the cases, the Black suspects were found unarmed.
+
+
+## Subject race vs Injury
+```{r}
+#suspect injurey by race
+injured_race_plot <- ggplot(df,aes(x=CIT_INJURE, fill=CitRace))+
+  geom_bar(position="dodge")+scale_fill_brewer(palette = "Set1")+
+  labs(title="Injury Per Race", x="Subject Injured", y = "Count")+
+  geom_text(aes(label=..count..),stat='count',position=position_dodge(0.9),vjust=-0.2)
+
+injured_race_plot
+
+```
+
+
+
+The injury rate seems to be relatively low compared to the total population.
+
+
+## Visualising the most common offences committed
+Let's plot the most common incidents reported in the region.
+```{r}
+offences_types <- df  %>%
+  group_by(CitChargeT)  %>%
+  summarise(counts = n())
+
+
+
+top_n(offences_types, n=10) %>%
+  ggplot(., aes(x=CitChargeT, y=counts))+
+  geom_bar(stat='identity')+theme(axis.text.x = element_text(angle = 90), legend.position = "None")
+
+```
+
+
+
+Apoww is the highest incident reported in the region, followed by no arrest and public intoxication.
+
+
+
+## Comparision of reason for the incident and the race of the suspect
+```{r}
+inc_vs_race = ggplot(df,aes(x = CitRace,fill = SERVICE_TY)) + 
+  geom_bar(position = "dodge") +
+  theme(axis.text.x = element_text(size  = 8,
+                                   angle = 90,
+                                   hjust = 1,
+                                   vjust = 1))
+
+ggplotly(inc_vs_race)
+
+```
+
+
+
+Most of the incidents occurred as a result of Arrest followed by service call in blacks, whites and Hispanics.
+
+
+
+## Race distribution across divisions
+```{r}
+race_vs_div = ggplot(df,aes(x = DIVISION,fill = CitRace)) + 
+  geom_bar(position = "dodge") +
+  theme(axis.text.x = element_text(size  = 8,
+                                   angle = 90,
+                                   hjust = 1,
+                                   vjust = 1))+labs(y = "", x = "Division", title = "Distribution of Race across Divisions")
+
+race_vs_div
+
+```
+The leading population of incidents are black across all the regions, with the highest amount of blacks in the central region.
+
+
+
+```{r, fig.width= 10}
+
+arrests_vs_race <-  ggplot(df,aes(x=UOF_REASON, y=after_stat(count), fill=CitRace))+ geom_bar()+theme(axis.text.x = element_text(angle = 90), legend.position = "bottom")+labs(title="Different forces used on each race")
+
+ggplotly(arrests_vs_race)
+
+```
+
+
+Let's have a look at the race of subjects, tha are involved in the top most frequent incidents
+```{r}
+race_top_inc <-  ggplot(subset(df,CitChargeT %in% c("APOWW","Assault","Assault/FV","No Arrest","Public Intoxication","Warrant/Hold"))  ,aes(x=CitChargeT, y=after_stat(count), fill=CitRace))+  geom_bar(position = "dodge")+labs(y = "", x = "Incident", title = "Races involved in top incidents")
+
+
+ggplotly(race_top_inc)
+```
+
+
+
+```{r,fig.width=15}
+
+
+top_inc_force <- ggplot(subset(df,CitChargeT %in% c("APOWW","Assault","Assault/FV","No Arrest","Public Intoxication","Warrant/Hold"))  ,aes(x=CitChargeT, y=after_stat(count), fill=ForceType1))+ geom_bar(position = "dodge") + labs(x="Offence Type", y = "Count", title="Type of force used in each offence")+theme(axis.text.x = element_text(angle = 90))
+
+
+ggplotly(top_inc_force)
+
+```
+Verbal command is the majority force used by the officers. In 97 cases of **No Arrest** a weapon display has occurred.
+
+
+```{r, fig.width = 15}
+race_vs_force <- ggplot(subset(df,CitRace %in% c("Black","White","Hispanic")),aes(x=CitRace, y=after_stat(count), fill=ForceType1),color="black")+ geom_bar(position = "dodge", size=2)+theme_minimal()+labs(x="Race of subject", y="Count", title="Force used on different races")
+
+ggplotly(race_vs_force)
+
+```
+Black suspects hare faced the highest number of verbal commands, tasers and weapon displays.
+
+
+```{r, fig.width=10}
+
+street_types <- ggplot(df,aes(x=street_t, y=after_stat(count), fill=street_t))+ geom_bar()+labs(x="Street Type", y="Count", title="Incidents across various street types")+theme(axis.text.x = element_text(angle = 90))
+ggplotly(street_types)
+
+```
+Most number of incidents have occurred at "St." followed by Driveways.
+
+## Incident types across various divisions
+```{r fig.width=10}
+
+inc_type_per_div <- ggplot(subset(df,CitChargeT %in% c("APOWW","Assault","Assault/FV","No Arrest","Public Intoxication","Warrant/Hold"))  ,aes(x=CitChargeT, y=after_stat(count), fill=DIVISION))+ geom_bar(position = "dodge")+ labs(x="Offence type", y="Count", title="Offence types across divisions")
+
+ggplotly(inc_type_per_div)
+
+```
+
+Public intoxication is the highest in the central region, assault is highest in the southwest region
+
+
+Plotting the street names that had the most incidents
+```{r, fig.width=7}
+
+top_street <- df  %>%
+  group_by(STREET)  %>%
+  summarise(counts = n())
+top_n(top_street, n=10) %>%
+  ggplot(., aes(x=STREET, y=counts))+
+  geom_bar(stat='identity')+theme_bw()+labs(x="Street Name", y="Number of Incidents", title="Incident counts in each street")
+##
+
+```
+Commerce street has had the most number of incidents.
+
+
+Let's try to analyze the behaviors of officers that are new in the force vs seniors
+```{r}
+
+off_experience <- ggplot(data=df,aes(x=INCIDENT_DATE_LESS_ , y= after_stat(count), fill=SERVICE_TY))+geom_bar()+labs(x="Years in force", y="Count", title = "Officer experience vs Incident Reason")
+
+ggplotly(off_experience)
+
+```
+
+Young officers that have been in the force for less than 10 years are the most involved in incidents that resulted in arrests. They are also most likely to call for cover.
+
+
+##Plotting incidents per regions and race
+```{r}
+
+df2 <- df[!is.na(df$Latitude) & !is.na(df$Longitude),]
+#head(df2)
+area_vs_race <- mapview(df2, xcol = "Longitude", ycol = "Latitude", zcol="CitRace", crs = 4269, grid = FALSE, legend=TRUE, col.regions = palette("ggplot2"))
+area_vs_race
+
+
+```
+
+
+The above map shows us all the incidents that have occurred in the region color coded by the race of the suspects.
+
+
+
+# Conclusion
+
+The key observations from the analysis are:
+
+* The overall crime rate is on a declining pattern. In the month of Dec, the least number of incidents happened.
+
+* Central Division recorded the most number of incidents. 
+
+* March of 2016 recorded the highest number of crimes.
+
+* Most of the incidents have been committed by the people belonging to the Black race, followed by Hispanic.
+
+* There is no conclusive evidence of racial discrimination by the police towards any particular race. Black race has generally had the highest number of incidents. There is no data available for the legitimacy of the arrests or other charges faced by the suspects.
+
+* Due to the high proportion of white officers in the force, most of the incidents were dealt by them. This means, most of the incidents where a black suspect was involved were dealt by white officers.
+
+There is no conclusive proof of any racial discrimination in the state of Texas, according to the data of 2016. Although more data would have given us more insights.
+
+
+
