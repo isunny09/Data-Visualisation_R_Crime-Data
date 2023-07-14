@@ -1,7 +1,6 @@
 ---
 title: "Analysis and Visualization of Centre For Policing Equity Data"
-author: "Santosh Kumar Inaganti (si21114)"
-date: "29/04/2022"
+author: "Santosh Inaganti"
 output: html_document
 ---
 
