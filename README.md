@@ -2,26 +2,41 @@
 
 The html output file might not be visible in github. Please download the file to the local machine to view it.
 
-Summary and Findings:
+The project aimed to analyze and visualize the Centre For Policing Equity data, focusing on incidents and police force details in Dallas, Texas. The primary goal was to investigate potential racial disparities or injustices within the police force. The project utilized R programming and various data visualization libraries to uncover insights from the dataset.
+Key Findings:
 
-The analysis and visualization of the Centre for Policing Equity data revealed several interesting findings:
+Incidents by Month:
+The analysis revealed a decline in the overall crime rate, with December having the fewest incidents.
+March 2016 recorded the highest number of incidents.
 
-Monthly Incident Trends: The incident rate peaked in March, followed closely by February, while December recorded the lowest number of incidents.
+Incidents by Division:
+The Central Division had the highest number of reported incidents.
+The Northwest Division had the lowest number of incidents, suggesting it may be a relatively safer area.
 
-Gender Ratio of Officers: The ratio of female officers in the police force is significantly lower compared to male officers, accounting for only about 10% of the total force.
+Officer Gender Distribution:
+The police force was predominantly male, with only about 10% of officers being female.
 
-Incidents Across Divisions: The Central division had the highest number of incidents, while the Northwest division had the lowest. February and March had the highest number of incidents across all divisions.
+Arrest Statistics:
+Approximately 86% of incidents resulted in the arrest of the suspect.
 
-Race Ratio Among Officers: The majority of the officers were White, followed by Hispanic. American Indian officers were the least represented group, with Black officers accounting for the third highest race.
+Subject Description:
+Mental instability was a common factor in incidents, followed by alcohol-related issues.
+Black and White individuals were equally involved in "FD-Motor Vehicle" descriptions.
 
-Race of Officers and Incident Reason: White officers were involved in more incidents overall due to their higher representation in the force. However, Black officers were more involved in crowd control incidents, while White officers were more involved in incidents related to suspicious activity.
+Common Offenses:
+The most common offenses included "APOWW," "Assault," and "No Arrest."
 
-Race of Subjects: Black subjects were involved in the highest number of incidents, followed by Hispanic and White subjects.
+Force Used:
+Verbal commands were the most used force, followed by tasers and weapon displays.
 
-Arrests: Out of a total of 2,383 reported incidents, subjects were arrested in approximately 86% of the cases.
+Incidents Across Divisions:
+Public intoxication was most common in the Central Division, while assault incidents were highest in the Southwest Division.
 
-Arrest Ratio by Race: Black males were the most arrested subjects, followed by Hispanic males.
+Geographic Visualization:
+A geographic map visualized incidents color-coded by the race of the suspects, providing a spatial perspective on the data.
 
-Subject Description: Mental instability was the leading subject description for incidents, followed by incidents related to alcohol.
+Conclusion:
+The analysis of the Centre For Policing Equity data for Dallas, Texas, in 2016 did not provide conclusive evidence of racial discrimination by the police towards any race. While incidents involving Black individuals were more prevalent, the analysis lacked data on the legitimacy of arrests or other charges faced by suspects. Additionally, the demographic composition of the police force influenced the patterns of officer involvement in incidents.
+Overall, the project highlighted important insights into policing and incidents in Dallas, Texas, and emphasized the need for further research and data collection to gain a more comprehensive understanding of policing practices and racial disparities.
 
-Force Used by Officers: Verbal commands were the most common force used, followed by tasers and weapon displays.
+
