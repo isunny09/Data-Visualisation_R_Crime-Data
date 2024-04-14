@@ -1,4 +1,4 @@
-# Data-Visualisation_R_Crime-Data
+# Data-Visualisation_Crime-Data
 
 The html output file might not be visible in github. Please download the file to the local machine to view it.
 
